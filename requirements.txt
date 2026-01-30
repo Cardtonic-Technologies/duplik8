@@ -1,0 +1,11 @@
+numpy<2.0.0
+paddlepaddle==2.6.2
+paddleocr==2.7.3
+fastapi
+uvicorn
+gunicorn
+pillow
+opencv-python-headless
+python-multipart
+imagehash
+requests

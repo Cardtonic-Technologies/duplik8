@@ -20,21 +20,26 @@ RUN pip install --no-cache-dir --upgrade pip
 # install NumPy 2.0.0
 RUN pip install --no-cache-dir "numpy<2.0.0"
 
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# being installed from the above RUN and COPY command
+
 # install PaddlePaddle
-RUN pip install --no-cache-dir --default-timeout=1000 paddlepaddle==2.6.2
+#RUN pip install --no-cache-dir --default-timeout=1000 paddlepaddle==2.6.2
 
 # install Application Dependencies (MODIFIED)
 # added "numpy<2.0.0" here to ensure the constraint holds during resolution
-RUN pip install --no-cache-dir --default-timeout=1000 \
-    "numpy<2.0.0" \
-    paddleocr==2.7.3 \
-    fastapi \
-    uvicorn \
-    gunicorn \
-    pillow \
-    opencv-python-headless \
-    python-multipart \
-    imagehash
+#RUN pip install --no-cache-dir --default-timeout=1000 \
+#    "numpy<2.0.0" \
+#    paddleocr==2.7.3 \
+#    fastapi \
+#    uvicorn \
+#    gunicorn \
+#    pillow \
+#    opencv-python-headless \
+#    python-multipart \
+#    imagehash
 
 # add PADDLEOCR MODELS to prevent runtime downloads/timeouts (took quite some mminute, and that's not good for oproduction)
 
@@ -64,4 +69,4 @@ COPY app.py .
 EXPOSE 8000
 
 ENV OMP_NUM_THREADS=1
-CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--threads", "4", "--timeout", "120", "app:app", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--threads", "1", "--timeout", "120", "app:app", "--bind", "0.0.0.0:8000"]
