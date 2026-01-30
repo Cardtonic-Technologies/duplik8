@@ -47,7 +47,7 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64 # PaddlePaddle arm64 builds can be unstable; stick to amd64 unless arm64 is required.
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ env.REPO_OWNER }}/duplik8:${{ github.sha }}
             ghcr.io/${{ env.REPO_OWNER }}/duplik8:latest
