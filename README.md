@@ -44,6 +44,25 @@ docker-compose up --build
 
 ```
 
+> [!NOTE]
+> 
+> Authentication can be added as below
+> 
+> ```yaml
+> services:
+>   duplik8:
+>     build:
+>       context: .
+>       dockerfile: Dockerfile
+>     ports:
+>       - "8000:8000"
+>     environment:
+>       - BASIC_AUTH_USERNAME=yourusername
+>       - BASIC_AUTH_PASSWORD=yourpassword
+>     restart: always
+> ```
+
+
 
 2. **Verify Status:**
 The service runs on port `8000`. Check the health endpoint:
@@ -65,6 +84,16 @@ You can test the OCR engine using `curl` or Postman.
 curl -X POST http://localhost:8000/analyze \
      -H "Content-Type: application/json" \
      -d '{"image_url": "https://assets.pil.com/1.jpeg"}'
+
+```
+**With Auth:** `POST /analyze`
+
+```bash
+curl -u yourusername:yourpassword \
+     -H "Content-Type: application/json" \
+     -d '{"image_url":"https://assets.pil.com/1.jpeg"}' \
+     http://localhost:8000/analyze
+
 
 ```
 

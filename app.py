@@ -1,11 +1,57 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from paddleocr import PaddleOCR
 import cv2
 import numpy as np
 import requests
+import os
+import secrets
+from typing import Optional
 
 app = FastAPI()
+
+# basic authentication (this is optional, and only fires with the environments are provided)
+security = HTTPBasic(auto_error=False)
+
+BASIC_AUTH_USERNAME = os.getenv("BASIC_AUTH_USERNAME")
+BASIC_AUTH_PASSWORD = os.getenv("BASIC_AUTH_PASSWORD")
+
+
+def optional_basic_auth(
+    credentials: Optional[HTTPBasicCredentials] = Depends(security),
+):
+    # No auth configured → open access
+    if not BASIC_AUTH_USERNAME and not BASIC_AUTH_PASSWORD:
+        return
+
+    # Auth configured but no credentials sent
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # Validate username (if configured)
+    if BASIC_AUTH_USERNAME and not secrets.compare_digest(
+        credentials.username, BASIC_AUTH_USERNAME
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # Validate password (if configured)
+    if BASIC_AUTH_PASSWORD and not secrets.compare_digest(
+        credentials.password, BASIC_AUTH_PASSWORD
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 # We do this outside the function so the model loads only once at startup.
 # use_angle_cls=True loads the direction classifier model.
@@ -15,14 +61,16 @@ ocr_engine = PaddleOCR(use_angle_cls=True, lang='en')
 class AnalysisRequest(BaseModel):
     image_url: str
 
-
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "duplik8 Service is Ready"}
 
 
 @app.post("/analyze")
-def analyze_image(payload: AnalysisRequest):
+def analyze_image(
+    payload: AnalysisRequest,
+    _=Depends(optional_basic_auth),
+):
     """
     Receives an image_url, downloads the image, and runs OCR.
     """

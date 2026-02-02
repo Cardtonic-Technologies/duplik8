@@ -5,4 +5,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    #environment:
+      #- BASIC_AUTH_USERNAME=yourusername
+      #- BASIC_AUTH_PASSWORD=yourpassword
     restart: always
