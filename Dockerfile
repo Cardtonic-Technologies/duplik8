@@ -64,7 +64,7 @@ RUN wget -O /tmp/cls.tar https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppoc
     && rm /tmp/cls.tar
 
 WORKDIR /app
-COPY app.py .
+COPY app.py media_download.py ./
 
 EXPOSE 8000
 

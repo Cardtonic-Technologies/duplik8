@@ -4,10 +4,10 @@ from pydantic import BaseModel
 from paddleocr import PaddleOCR
 import cv2
 import numpy as np
-import requests
 import os
 import secrets
 from typing import Optional
+from media_download import MediaDownloadError, download_image
 
 app = FastAPI()
 
@@ -16,6 +16,11 @@ security = HTTPBasic(auto_error=False)
 
 BASIC_AUTH_USERNAME = os.getenv("BASIC_AUTH_USERNAME")
 BASIC_AUTH_PASSWORD = os.getenv("BASIC_AUTH_PASSWORD")
+MEDIA_ALLOWED_HOSTS = frozenset(
+    host.strip().encode("idna").decode("ascii").lower().rstrip(".")
+    for host in os.getenv("MEDIA_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+)
 
 
 def optional_basic_auth(
@@ -74,27 +79,24 @@ def analyze_image(
     """
     Receives an image_url, downloads the image, and runs OCR.
     """
-    image_url = payload.image_url
-
     # download the image
     try:
-        response = requests.get(image_url, timeout=10)
-        response.raise_for_status()  # Raise error for 404/500 responses
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=400, detail=f"Failed to download image: {str(e)}")
+        content = download_image(payload.image_url, allowed_hosts=MEDIA_ALLOWED_HOSTS)
+    except MediaDownloadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
 
     # decode image to Numpy Array (Required by PaddleOCR/OpenCV)
     try:
         # convert raw bytes to numpy array
-        image_bytes = np.frombuffer(response.content, np.uint8)
+        image_bytes = np.frombuffer(content, np.uint8)
         # decode image using OpenCV
         img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
 
-        if img is None:
-            raise HTTPException(status_code=400, detail="URL did not point to a valid image file.")
+    except Exception:
+        raise HTTPException(status_code=422, detail="Image processing failed.") from None
 
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Image processing failed: {str(e)}")
+    if img is None:
+        raise HTTPException(status_code=400, detail="URL did not point to a valid image file.")
 
     # run OCR Analysis
     # cls=True enables angle classification

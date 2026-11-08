@@ -144,6 +144,45 @@ curl -u yourusername:yourpassword \
 
 ```
 
+#### Media download policy
+
+Image URLs must use HTTP on port 80 or HTTPS on port 443 and resolve entirely to
+public IP addresses. Private networks, loopback, link-local/metadata addresses,
+special-purpose IP ranges, URL userinfo, and redirects are rejected. Supply the
+final media URL directly. HTTPS still verifies the original hostname, while the
+TCP connection uses only the validated DNS results to prevent DNS rebinding.
+Proxy environment variables, `.netrc`, and inbound API credentials are not used
+for media requests. Signed URL query parameters are supported and are never
+included in download error responses.
+
+For deployments with known media sources, set `MEDIA_ALLOWED_HOSTS` to a
+comma-separated list of exact hostnames, for example:
+
+```yaml
+environment:
+  - MEDIA_ALLOWED_HOSTS=assets.pil.com,images.example.com
+```
+
+An unset or empty list permits any public HTTP(S) host. Subdomains must be listed
+explicitly; an allowed hostname must still resolve to public addresses.
+
+Downloads are streamed with a **20 MiB default limit**. Set `MEDIA_MAX_IMAGE_MIB`
+to a positive integer to change the limit (for example, `MEDIA_MAX_IMAGE_MIB=40`
+allows 40 MiB). The setting is read at startup; invalid or nonpositive values
+prevent startup.
+
+A **30-second total deadline** covers DNS, connection, TLS, response headers,
+and body reads. Each network
+operation also has a maximum **5-second** timeout. Compressed HTTP responses are
+rejected to avoid decompression bypasses; ordinary compressed image formats such
+as JPEG and PNG remain supported. Oversized responses return `413`; other download
+policy or network failures return `400` with a URL-free message.
+
+The existing internal authentication boundary is preserved: `/analyze` uses
+optional Basic authentication when `BASIC_AUTH_USERNAME` or `BASIC_AUTH_PASSWORD`
+is configured, and `/` remains accessible for health checks. Configured credentials
+are checked before any download or OCR work.
+
 ---
 
 ## 🏗 Architecture & Decisions
@@ -234,4 +273,12 @@ Deploy as a `Deployment` kind with **HPA** (Horizontal Pod Autoscaler).
 **Issue:** `Download error` or `Timeout` inside the logs.
 
 * **Cause:** The container cannot reach the image URL provided.
-* **Fix:** Ensure the URL is public or the container has network access to the asset server.
+* **Fix:** Supply a direct public HTTP(S) image URL without redirects, ensure the
+  container can reach the asset server, and check `MEDIA_ALLOWED_HOSTS` if set.
+
+### Regression checks
+
+Run `python -m unittest discover -s tests -v` with `fastapi` and `httpx` installed.
+The tests stub OCR dependencies and media sockets: no model downloads or external
+media requests are needed. Downloader-only checks use the Python standard library:
+`python -m unittest discover -s tests -p test_media_download.py -v`.
